@@ -1,0 +1,12 @@
+[theme]
+primaryColor="#28A197"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#EEEEEE"
+textColor="#333333"
+linkColor="#2B8CC4"
+font="sans-serif"
+headingFont="sans-serif"
+codeFont="monospace"
+baseRadius="none"
+borderColor="#999999"
+baseFontSize=16
