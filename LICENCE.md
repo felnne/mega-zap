@@ -1,14 +1,4 @@
-# Mega Zap ⚡️
-
-Basic [Streamlit](https://streamlit.io) app to process records for published maps created via Zap ⚡️.
-
-## Usage
-
-```
-% uv run -- streamlit run main.py
-```
-
-## Licence
+# MIT License
 
 Copyright (c) 2025 UK Research and Innovation (UKRI), British Antarctic Survey (BAS).
 
