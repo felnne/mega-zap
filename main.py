@@ -5,10 +5,11 @@ from copy import deepcopy
 from datetime import datetime
 
 import streamlit as st
+from streamlit_sortables import sort_items as st_sortables
 
 
 def show_intro() -> None:
-    st.title("🎈 _Mega_ Zap⚡️!")
+    st.title("_MEGA_ Zap⚡️")
 
 
 def _record_upload(label: str) -> dict:
@@ -43,14 +44,22 @@ def _process_identifiers(
                 record["identification"]["identifiers"].append(isbn)
 
 
-def _process_contacts(series: dict, side_a: dict, side_b: dict):
+def _process_contacts(
+    series: dict, side_a: dict, side_b: dict, contacts_order: list[int]
+):
     for record in [series, side_a, side_b]:
+        # set roles for MAGIC contact
         for i, contact in enumerate(record["identification"]["contacts"]):
             if (
-                contact["email"] == "magic@bas.ac.uk"
+                contact.get("email", "") == "magic@bas.ac.uk"
                 and "author" not in contact["role"]
             ):
                 record["identification"]["contacts"][i]["role"].append("author")
+
+        # reorder contacts
+        record["identification"]["contacts"] = [
+            record["identification"]["contacts"][i] for i in contacts_order
+        ]
 
 
 def _cp_graphic(graphic: dict, id: str) -> dict:
@@ -233,6 +242,7 @@ def _process_records(
     side_b_in: dict,
     isbn_flat: str | None,
     isbn_folded: str | None,
+    contacts_order: list[int],
 ) -> tuple[dict, dict, dict]:
     series = deepcopy(series_in)
     side_a = deepcopy(side_a_in)
@@ -244,7 +254,7 @@ def _process_records(
         st.write("Identifiers set.")
 
         st.write("Setting contacts...")
-        _process_contacts(series, side_a, side_b)
+        _process_contacts(series, side_a, side_b, contacts_order)
         st.write("Contacts set.")
 
         st.write("Setting graphic overviews...")
@@ -273,25 +283,65 @@ def _process_records(
     return series, side_a, side_b
 
 
+def _form_contacts(record: dict) -> list:
+    """
+    Reorders contacts in a record.
+
+    Returned value is a list of new indexs. E.g. for an orginial list [0, 1, 2] where the middle item is moved to the
+    end, [0, 2, 1] is returned.
+    To re-order list, access the original list using the new list. E.g.: new = [original[i] for i in updated_indexes]
+    """
+    contact_names = [
+        contact["individual"]["name"]
+        if "individual" in contact
+        else contact["organisation"]["name"]
+        for contact in record["identification"]["contacts"]
+    ]
+    contact_names_sorted = st_sortables(contact_names)
+
+    updated_indexes = [
+        record["identification"]["contacts"].index(
+            next(
+                contact
+                for contact in record["identification"]["contacts"]
+                if (
+                    ("individual" in contact and contact["individual"]["name"] == name)
+                    or (
+                        "organisation" in contact
+                        and contact["organisation"]["name"] == name
+                    )
+                )
+            )
+        )
+        for name in contact_names_sorted
+    ]
+    return updated_indexes
+
+
 def form() -> None:
     st.subheader("Upload records from Zap ⚡️")
     series_in = _record_upload("Record for overall map")
     a_in = _record_upload("Record for side A")
     b_in = _record_upload("Record for side B")
 
+    if not series_in or not a_in or not b_in:
+        st.info("Set records to continue.")
+        return
+
     st.subheader("Set optional ISBNs")
     isbn_flat = st.text_input("ISBN (Flat)")
     isbn_folded = st.text_input("ISBN (Folded)")
 
+    st.subheader("Set authors order")
+    contact_indexes = _form_contacts(series_in)
+
     series_out, a_out, b_out = {}, {}, {}
-    if series_in and a_in and b_in:
-        series_out, a_out, b_out = _process_records(
-            series_in, a_in, b_in, isbn_flat, isbn_folded
-        )
+    series_out, a_out, b_out = _process_records(
+        series_in, a_in, b_in, isbn_flat, isbn_folded, contact_indexes
+    )
 
     if series_out or a_out or b_out:
         st.subheader("Download processed records")
-
     if series_out:
         st.download_button(
             label="Download Overall Map Record",
