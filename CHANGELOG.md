@@ -1,5 +1,7 @@
 # Mega Zap ⚡️ - Change log
 
+## [0.2.0] - 2025-06-02
+
 ## [Unreleased]
 
 ### Added
