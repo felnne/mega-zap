@@ -66,24 +66,6 @@ def _process_contacts(
         ]
 
 
-def _cp_graphic(graphic: dict, id: str) -> dict:
-    graphic_copy = deepcopy(graphic)
-    graphic_copy["identifier"] = id
-    return graphic_copy
-
-
-def _process_graphic_overviews(series: dict, side_a: dict, side_b: dict):
-    s = series["identification"]["graphic_overviews"][0]
-    a = side_a["identification"]["graphic_overviews"][0]
-    b = side_b["identification"]["graphic_overviews"][0]
-
-    series["identification"]["graphic_overviews"] = [
-        s,
-        _cp_graphic(a, "side_a"),
-        _cp_graphic(b, "side_b"),
-    ]
-    side_a["identification"]["graphic_overviews"] = [a, _cp_graphic(s, "covers")]
-    side_b["identification"]["graphic_overviews"] = [b, _cp_graphic(s, "covers")]
 
 
 def _process_aggregations(series: dict, side_a: dict, side_b: dict) -> None:
@@ -283,10 +265,6 @@ def _process_records(
         st.write("Setting contacts...")
         _process_contacts(series, side_a, side_b, contacts_order)
         st.write("Contacts set.")
-
-        st.write("Setting graphic overviews...")
-        _process_graphic_overviews(series, side_a, side_b)
-        st.write("Graphic overviews set.")
 
         st.write("Setting aggregations...")
         _process_aggregations(series, side_a, side_b)
