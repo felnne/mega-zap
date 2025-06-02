@@ -12,6 +12,7 @@
 
 * no longer adds Side A/B extents to overall record (as the catalogue will resolve this via aggregation) 
 * no longer adds Side A/B thumbnails to overall record (as the catalogue will resolve this via aggregation) 
+* including purchase option distribution option in all records and not just overall record
 
 ## [0.1.0] - 2025-05-23
 

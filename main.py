@@ -177,7 +177,6 @@ def _process_extent(series: dict, side_a: dict, side_b: dict) -> None:
     series["identification"]["extents"] = [bounding]
 
 
-def _process_distribution(series: dict):
 def _process_sheet_number(series: dict, side_a: dict, side_b: dict, sheet_number: str | None) -> None:
     if not sheet_number:
         return
@@ -197,6 +196,7 @@ def _process_sheet_number(series: dict, side_a: dict, side_b: dict, sheet_number
             record["identification"]["supplemental_information"] = json.dumps(sinfo)
 
 
+def _process_distribution(series: dict, side_a: dict, side_b: dict) -> None:
     pub_maps_dist_option = {
         "distributor": {
             "organisation": {
@@ -230,7 +230,8 @@ def _process_sheet_number(series: dict, side_a: dict, side_b: dict, sheet_number
             }
         },
     }
-    series["distribution"] = [pub_maps_dist_option]
+    for record in [series, side_a, side_b]:
+        record["distribution"] = [pub_maps_dist_option]
 
 
 def _process_date_stamp(series: dict, side_a: dict, side_b: dict) -> None:
@@ -273,10 +274,10 @@ def _process_records(
         st.write("Extents set.")
 
         st.write("Setting distribution options...")
-        _process_distribution(series)
         _process_sheet_number(series, side_a, side_b, sheet_number)
         st.write("Sheet number set (if configured).")
 
+        _process_distribution(series, side_a, side_b)
         st.write("Distribution options set.")
 
         st.write("Setting metadata date stamp...")
