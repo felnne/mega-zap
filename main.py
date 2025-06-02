@@ -20,6 +20,10 @@ def _record_upload(label: str) -> dict:
     return record
 
 
+def _process_hierarchy_level(series: dict) -> None:
+    series["hierarchy_level"] = "paperMapProduct"
+
+
 def _process_identifiers(
     series: dict,
     side_a: dict,
@@ -250,6 +254,9 @@ def _process_records(
 
     with st.status("Processing records...", expanded=True) as status:
         st.write("Setting identifiers...")
+        _process_hierarchy_level(series)
+        st.write("Hierarchy level set.")
+
         _process_identifiers(series, side_a, side_b, isbn_flat, isbn_folded)
         st.write("Identifiers set.")
 
