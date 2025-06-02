@@ -4,9 +4,7 @@ Basic [Streamlit](https://streamlit.io) app to process records for published map
 
 ## Usage
 
-```
-% uv run -- streamlit run main.py
-```
+https://mega-zap.streamlit.app (temporary hosting)
 
 ## Record requirements
 
@@ -15,20 +13,12 @@ Basic [Streamlit](https://streamlit.io) app to process records for published map
 
 ## Processing steps
 
+- adds 'paper map product' local hierarchy level code list value to overall record (always)
 - adds ISBN identifiers to records (if set)
-- adds MAGIC as an author (always)
-- copies thumbnails across records (always):
-  - {Overall Map}:
-    - overview: {Overall Map}
-    - side_a: {Side A}
-    - side_b: {Side B}
-  - {Side A}:
-    - overview: {Side A}
-    - covers {Overall Map}
-  - {Side B}:
-    - overview: {Side B}
-    - covers {Overall Map}
-- adds aggregations (relationships) between records:
+- adds map series sheet number to records via supplemental info key-value (if set)
+- adds MAGIC as an author if missing (always)
+- sets the order of contacts inc. authors (always but changing order is optional)
+- adds aggregations (relationships) between records: (always)
   - {Overall Map}:
     - 'this item is composed of {Side A} and {Side B} as a paper map'
   - {Side A}:
@@ -37,27 +27,29 @@ Basic [Streamlit](https://streamlit.io) app to process records for published map
   - {Side B}:
     - 'this item is part of the larger paper map {Overall Map}'
     - 'this item is the physical reverse of {Side B} as a paper map'
-- copies extents across records:
-  - {Overall Map}:
-    - bounding: union({Side A}, {Side B})
-    - side_a: {Side A}
-    - side_b: {Side B}
-- adds distribution option for purchasing physical maps to {Overall Map}
+- adds distribution option for purchasing physical maps to {Overall Map} (always)
 
 ## Limitations
 
-- single sided maps not supported
-- more than 1 map frame on a side not supported
-- output records will give validation warnings for pending local code list value ('paperMap')
-- thumbnail types not fully right yet
+- only two sided maps are supported (not single or atlases)
+- only one map on each side is supported
+- output records will give validation warnings for pending local code list values ('paperMapProduct', 'paperMap')
 - doubt overall bbox is being calculated correctly
-- we don't have anything that states 123 is side A and 234 is side B
 - no tests
 
 ## Notes
 
 - Shouldn't include paper info in sides A/B?
-  - by that logic don't include ISBNs in sides A/B either?
+  - i.e. do we tie A/B to a specific paper map and inherit info/context from it, or not? 
+  - currently inconsistent but leaning towards tieing
+
+## Development
+
+Run locally:
+
+```
+% uv run -- streamlit run main.py
+```
 
 ## Licence
 
