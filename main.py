@@ -5,10 +5,11 @@ from copy import deepcopy
 from datetime import datetime
 
 import streamlit as st
+from streamlit_sortables import sort_items as st_sortables
 
 
 def show_intro() -> None:
-    st.title("🎈 _Mega_ Zap⚡️!")
+    st.title("_MEGA_ Zap⚡️")
 
 
 def _record_upload(label: str) -> dict:
@@ -19,23 +20,15 @@ def _record_upload(label: str) -> dict:
     return record
 
 
+def _process_hierarchy_level(series: dict) -> None:
+    series["hierarchy_level"] = "paperMapProduct"
+
+
 def _process_identifiers(
-    series: dict,
-    side_a: dict,
-    side_b: dict,
-    isbn_flat: str | None,
-    isbn_folded: str | None,
-):
-    id_isbn_flat = (
-        {"identifier": f"{isbn_flat} (Flat)", "namespace": "isbn"}
-        if isbn_flat
-        else None
-    )
-    id_isbn_folded = (
-        {"identifier": f"{isbn_folded} (Folded)", "namespace": "isbn"}
-        if isbn_folded
-        else None
-    )
+    series: dict, side_a: dict, side_b: dict, isbn_flat: str | None, isbn_folded: str | None
+) -> None:
+    id_isbn_flat = {"identifier": f"{isbn_flat} (Flat)", "namespace": "isbn"} if isbn_flat else None
+    id_isbn_folded = {"identifier": f"{isbn_folded} (Folded)", "namespace": "isbn"} if isbn_folded else None
 
     for record in [series, side_a, side_b]:
         for isbn in [id_isbn_flat, id_isbn_folded]:
@@ -43,34 +36,15 @@ def _process_identifiers(
                 record["identification"]["identifiers"].append(isbn)
 
 
-def _process_contacts(series: dict, side_a: dict, side_b: dict):
+def _process_contacts(series: dict, side_a: dict, side_b: dict, contacts_order: list[int]) -> None:
     for record in [series, side_a, side_b]:
+        # set roles for MAGIC contact
         for i, contact in enumerate(record["identification"]["contacts"]):
-            if (
-                contact["email"] == "magic@bas.ac.uk"
-                and "author" not in contact["role"]
-            ):
+            if contact.get("email", "") == "magic@bas.ac.uk" and "author" not in contact["role"]:
                 record["identification"]["contacts"][i]["role"].append("author")
 
-
-def _cp_graphic(graphic: dict, id: str) -> dict:
-    graphic_copy = deepcopy(graphic)
-    graphic_copy["identifier"] = id
-    return graphic_copy
-
-
-def _process_graphic_overviews(series: dict, side_a: dict, side_b: dict):
-    s = series["identification"]["graphic_overviews"][0]
-    a = side_a["identification"]["graphic_overviews"][0]
-    b = side_b["identification"]["graphic_overviews"][0]
-
-    series["identification"]["graphic_overviews"] = [
-        s,
-        _cp_graphic(a, "side_a"),
-        _cp_graphic(b, "side_b"),
-    ]
-    side_a["identification"]["graphic_overviews"] = [a, _cp_graphic(s, "covers")]
-    side_b["identification"]["graphic_overviews"] = [b, _cp_graphic(s, "covers")]
+        # reorder contacts
+        record["identification"]["contacts"] = [record["identification"]["contacts"][i] for i in contacts_order]
 
 
 def _process_aggregations(series: dict, side_a: dict, side_b: dict) -> None:
@@ -142,9 +116,7 @@ def _process_aggregations(series: dict, side_a: dict, side_b: dict) -> None:
     ]
 
 
-def resolve_bboxes(
-    bboxes: list[tuple[float, float, float, float]],
-) -> tuple[float, float, float, float]:
+def resolve_bboxes(bboxes: list[tuple[float, float, float, float]]) -> tuple[float, float, float, float]:
     west = min([bbox[0] for bbox in bboxes])
     east = max([bbox[1] for bbox in bboxes])
     south = min([bbox[2] for bbox in bboxes])
@@ -153,11 +125,9 @@ def resolve_bboxes(
     return (west, east, south, north)
 
 
-def _process_extent(series: dict, side_a: dict, side_b: dict):
-    a = deepcopy(side_a["identification"]["extents"][0])
-    b = deepcopy(side_b["identification"]["extents"][0])
-    a["identifier"] = "side-a"
-    b["identifier"] = "side-b"
+def _process_extent(series: dict, side_a: dict, side_b: dict) -> None:
+    a = deepcopy(next(extent for extent in side_a["identification"]["extents"] if extent["identifier"] == "bounding"))
+    b = deepcopy(next(extent for extent in side_b["identification"]["extents"] if extent["identifier"] == "bounding"))
 
     bbboxes = [
         (
@@ -181,10 +151,29 @@ def _process_extent(series: dict, side_a: dict, side_b: dict):
         },
     }
 
-    series["identification"]["extents"] = [bounding, a, b]
+    series["identification"]["extents"] = [bounding]
 
 
-def _process_distribution(series: dict):
+def _process_sheet_number(series: dict, side_a: dict, side_b: dict, sheet_number: str | None) -> None:
+    if not sheet_number:
+        return
+
+    for record in [series, side_a, side_b]:
+        sinfo = {}
+        if "supplemental_information" in record["identification"]:
+            # try to json decode existing supplemental information
+            try:
+                sinfo = json.loads(record["identification"]["supplemental_information"])
+            except json.JSONDecodeError:
+                msg = "Supplemental information is set but isn't JSON parsable, won't continue."
+                e = RuntimeError(msg)
+                st.exception(e)
+                raise e
+            sinfo["sheet_number"] = sheet_number
+            record["identification"]["supplemental_information"] = json.dumps(sinfo)
+
+
+def _process_distribution(series: dict, side_a: dict, side_b: dict) -> None:
     pub_maps_dist_option = {
         "distributor": {
             "organisation": {
@@ -218,7 +207,8 @@ def _process_distribution(series: dict):
             }
         },
     }
-    series["distribution"] = [pub_maps_dist_option]
+    for record in [series, side_a, side_b]:
+        record["distribution"] = [pub_maps_dist_option]
 
 
 def _process_date_stamp(series: dict, side_a: dict, side_b: dict) -> None:
@@ -231,39 +221,37 @@ def _process_records(
     series_in: dict,
     side_a_in: dict,
     side_b_in: dict,
+    sheet_number: str | None,
     isbn_flat: str | None,
     isbn_folded: str | None,
+    contacts_order: list[int],
 ) -> tuple[dict, dict, dict]:
     series = deepcopy(series_in)
     side_a = deepcopy(side_a_in)
     side_b = deepcopy(side_b_in)
 
     with st.status("Processing records...", expanded=True) as status:
-        st.write("Setting identifiers...")
-        _process_identifiers(series, side_a, side_b, isbn_flat, isbn_folded)
-        st.write("Identifiers set.")
+        _process_hierarchy_level(series)
+        st.write("Hierarchy level set.")
 
-        st.write("Setting contacts...")
-        _process_contacts(series, side_a, side_b)
+        _process_identifiers(series, side_a, side_b, isbn_flat, isbn_folded)
+        st.write("Identifiers set (if configured).")
+
+        _process_contacts(series, side_a, side_b, contacts_order)
         st.write("Contacts set.")
 
-        st.write("Setting graphic overviews...")
-        _process_graphic_overviews(series, side_a, side_b)
-        st.write("Graphic overviews set.")
-
-        st.write("Setting aggregations...")
         _process_aggregations(series, side_a, side_b)
         st.write("Aggregations set.")
 
-        st.write("Setting extents...")
         _process_extent(series, side_a, side_b)
         st.write("Extents set.")
 
-        st.write("Setting distribution options...")
-        _process_distribution(series)
+        _process_sheet_number(series, side_a, side_b, sheet_number)
+        st.write("Sheet number set (if configured).")
+
+        _process_distribution(series, side_a, side_b)
         st.write("Distribution options set.")
 
-        st.write("Setting metadata date stamp...")
         _process_date_stamp(series, side_a, side_b)
         st.write("Metadata date stamp set.")
 
@@ -273,25 +261,65 @@ def _process_records(
     return series, side_a, side_b
 
 
+def _form_contacts(record: dict) -> list:
+    """
+    Reorders contacts in a record.
+
+    Returned value is a list of new indexs. E.g. for an orginial list [0, 1, 2] where the middle item is moved to the
+    end, [0, 2, 1] is returned.
+    To re-order list, access the original list using the new list. E.g.: new = [original[i] for i in updated_indexes]
+    """
+    contact_names = [
+        contact["individual"]["name"] if "individual" in contact else contact["organisation"]["name"]
+        for contact in record["identification"]["contacts"]
+    ]
+    contact_names_sorted = st_sortables(contact_names)
+
+    updated_indexes = [
+        record["identification"]["contacts"].index(
+            next(
+                contact
+                for contact in record["identification"]["contacts"]
+                if (
+                    ("individual" in contact and contact["individual"]["name"] == name)
+                    or ("organisation" in contact and contact["organisation"]["name"] == name)
+                )
+            )
+        )
+        for name in contact_names_sorted
+    ]
+    return updated_indexes
+
+
 def form() -> None:
-    st.subheader("Upload records from Zap ⚡️")
-    series_in = _record_upload("Record for overall map")
-    a_in = _record_upload("Record for side A")
-    b_in = _record_upload("Record for side B")
+    st.subheader("Upload Zap ⚡️ records")
+    series_in = _record_upload("Overall map")
+    a_in = _record_upload("Side A")
+    b_in = _record_upload("Side B")
+
+    if not series_in or not a_in or not b_in:
+        st.info("Set records to continue.")
+        return
+
+    st.subheader("Set optional sheet number")
+    st.write("Map series and edition can be set in Zap ⚡️.")
+    sheet_number = st.text_input("Sheet number")
 
     st.subheader("Set optional ISBNs")
     isbn_flat = st.text_input("ISBN (Flat)")
     isbn_folded = st.text_input("ISBN (Folded)")
 
+    st.subheader("Set authors order")
+    contact_indexes = _form_contacts(series_in)
+
+    st.info("Changing any options above will automatically re-process records for download.")
     series_out, a_out, b_out = {}, {}, {}
-    if series_in and a_in and b_in:
-        series_out, a_out, b_out = _process_records(
-            series_in, a_in, b_in, isbn_flat, isbn_folded
-        )
+    series_out, a_out, b_out = _process_records(
+        series_in, a_in, b_in, sheet_number, isbn_flat, isbn_folded, contact_indexes
+    )
 
     if series_out or a_out or b_out:
         st.subheader("Download processed records")
-
     if series_out:
         st.download_button(
             label="Download Overall Map Record",
@@ -318,7 +346,7 @@ def form() -> None:
         )
 
 
-def main():
+def main() -> None:
     st.set_page_config()
     show_intro()
     form()
