@@ -25,22 +25,10 @@ def _process_hierarchy_level(series: dict) -> None:
 
 
 def _process_identifiers(
-    series: dict,
-    side_a: dict,
-    side_b: dict,
-    isbn_flat: str | None,
-    isbn_folded: str | None,
-):
-    id_isbn_flat = (
-        {"identifier": f"{isbn_flat} (Flat)", "namespace": "isbn"}
-        if isbn_flat
-        else None
-    )
-    id_isbn_folded = (
-        {"identifier": f"{isbn_folded} (Folded)", "namespace": "isbn"}
-        if isbn_folded
-        else None
-    )
+    series: dict, side_a: dict, side_b: dict, isbn_flat: str | None, isbn_folded: str | None
+) -> None:
+    id_isbn_flat = {"identifier": f"{isbn_flat} (Flat)", "namespace": "isbn"} if isbn_flat else None
+    id_isbn_folded = {"identifier": f"{isbn_folded} (Folded)", "namespace": "isbn"} if isbn_folded else None
 
     for record in [series, side_a, side_b]:
         for isbn in [id_isbn_flat, id_isbn_folded]:
@@ -48,24 +36,15 @@ def _process_identifiers(
                 record["identification"]["identifiers"].append(isbn)
 
 
-def _process_contacts(
-    series: dict, side_a: dict, side_b: dict, contacts_order: list[int]
-):
+def _process_contacts(series: dict, side_a: dict, side_b: dict, contacts_order: list[int]) -> None:
     for record in [series, side_a, side_b]:
         # set roles for MAGIC contact
         for i, contact in enumerate(record["identification"]["contacts"]):
-            if (
-                contact.get("email", "") == "magic@bas.ac.uk"
-                and "author" not in contact["role"]
-            ):
+            if contact.get("email", "") == "magic@bas.ac.uk" and "author" not in contact["role"]:
                 record["identification"]["contacts"][i]["role"].append("author")
 
         # reorder contacts
-        record["identification"]["contacts"] = [
-            record["identification"]["contacts"][i] for i in contacts_order
-        ]
-
-
+        record["identification"]["contacts"] = [record["identification"]["contacts"][i] for i in contacts_order]
 
 
 def _process_aggregations(series: dict, side_a: dict, side_b: dict) -> None:
@@ -137,9 +116,7 @@ def _process_aggregations(series: dict, side_a: dict, side_b: dict) -> None:
     ]
 
 
-def resolve_bboxes(
-    bboxes: list[tuple[float, float, float, float]],
-) -> tuple[float, float, float, float]:
+def resolve_bboxes(bboxes: list[tuple[float, float, float, float]]) -> tuple[float, float, float, float]:
     west = min([bbox[0] for bbox in bboxes])
     east = max([bbox[1] for bbox in bboxes])
     south = min([bbox[2] for bbox in bboxes])
@@ -254,33 +231,27 @@ def _process_records(
     side_b = deepcopy(side_b_in)
 
     with st.status("Processing records...", expanded=True) as status:
-        st.write("Setting identifiers...")
         _process_hierarchy_level(series)
         st.write("Hierarchy level set.")
 
         _process_identifiers(series, side_a, side_b, isbn_flat, isbn_folded)
-        st.write("Identifiers set.")
+        st.write("Identifiers set (if configured).")
 
-        st.write("Setting contacts...")
         _process_contacts(series, side_a, side_b, contacts_order)
         st.write("Contacts set.")
 
-        st.write("Setting aggregations...")
         _process_aggregations(series, side_a, side_b)
         st.write("Aggregations set.")
 
-        st.write("Setting extents...")
         _process_extent(series, side_a, side_b)
         st.write("Extents set.")
 
-        st.write("Setting distribution options...")
         _process_sheet_number(series, side_a, side_b, sheet_number)
         st.write("Sheet number set (if configured).")
 
         _process_distribution(series, side_a, side_b)
         st.write("Distribution options set.")
 
-        st.write("Setting metadata date stamp...")
         _process_date_stamp(series, side_a, side_b)
         st.write("Metadata date stamp set.")
 
@@ -299,9 +270,7 @@ def _form_contacts(record: dict) -> list:
     To re-order list, access the original list using the new list. E.g.: new = [original[i] for i in updated_indexes]
     """
     contact_names = [
-        contact["individual"]["name"]
-        if "individual" in contact
-        else contact["organisation"]["name"]
+        contact["individual"]["name"] if "individual" in contact else contact["organisation"]["name"]
         for contact in record["identification"]["contacts"]
     ]
     contact_names_sorted = st_sortables(contact_names)
@@ -313,10 +282,7 @@ def _form_contacts(record: dict) -> list:
                 for contact in record["identification"]["contacts"]
                 if (
                     ("individual" in contact and contact["individual"]["name"] == name)
-                    or (
-                        "organisation" in contact
-                        and contact["organisation"]["name"] == name
-                    )
+                    or ("organisation" in contact and contact["organisation"]["name"] == name)
                 )
             )
         )
@@ -326,10 +292,10 @@ def _form_contacts(record: dict) -> list:
 
 
 def form() -> None:
-    st.subheader("Upload records from Zap ⚡️")
-    series_in = _record_upload("Record for overall map")
-    a_in = _record_upload("Record for side A")
-    b_in = _record_upload("Record for side B")
+    st.subheader("Upload Zap ⚡️ records")
+    series_in = _record_upload("Overall map")
+    a_in = _record_upload("Side A")
+    b_in = _record_upload("Side B")
 
     if not series_in or not a_in or not b_in:
         st.info("Set records to continue.")
@@ -346,6 +312,7 @@ def form() -> None:
     st.subheader("Set authors order")
     contact_indexes = _form_contacts(series_in)
 
+    st.info("Changing any options above will automatically re-process records for download.")
     series_out, a_out, b_out = {}, {}, {}
     series_out, a_out, b_out = _process_records(
         series_in, a_in, b_in, sheet_number, isbn_flat, isbn_folded, contact_indexes
@@ -379,7 +346,7 @@ def form() -> None:
         )
 
 
-def main():
+def main() -> None:
     st.set_page_config()
     show_intro()
     form()

@@ -14,3 +14,6 @@ dev = [
     "ruff>=0.11.7",
     "watchdog>=6.0.0",
 ]
+
+[tool.ruff]
+line-length = 120
