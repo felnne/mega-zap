@@ -198,6 +198,25 @@ def _process_extent(series: dict, side_a: dict, side_b: dict):
 
 
 def _process_distribution(series: dict):
+def _process_sheet_number(series: dict, side_a: dict, side_b: dict, sheet_number: str | None) -> None:
+    if not sheet_number:
+        return
+
+    for record in [series, side_a, side_b]:
+        sinfo = {}
+        if "supplemental_information" in record["identification"]:
+            # try to json decode existing supplemental information
+            try:
+                sinfo = json.loads(record["identification"]["supplemental_information"])
+            except json.JSONDecodeError:
+                msg = "Supplemental information is set but isn't JSON parsable, won't continue."
+                e = RuntimeError(msg)
+                st.exception(e)
+                raise e
+            sinfo["sheet_number"] = sheet_number
+            record["identification"]["supplemental_information"] = json.dumps(sinfo)
+
+
     pub_maps_dist_option = {
         "distributor": {
             "organisation": {
@@ -244,6 +263,7 @@ def _process_records(
     series_in: dict,
     side_a_in: dict,
     side_b_in: dict,
+    sheet_number: str | None,
     isbn_flat: str | None,
     isbn_folded: str | None,
     contacts_order: list[int],
@@ -278,6 +298,9 @@ def _process_records(
 
         st.write("Setting distribution options...")
         _process_distribution(series)
+        _process_sheet_number(series, side_a, side_b, sheet_number)
+        st.write("Sheet number set (if configured).")
+
         st.write("Distribution options set.")
 
         st.write("Setting metadata date stamp...")
@@ -335,6 +358,10 @@ def form() -> None:
         st.info("Set records to continue.")
         return
 
+    st.subheader("Set optional sheet number")
+    st.write("Map series and edition can be set in Zap ⚡️.")
+    sheet_number = st.text_input("Sheet number")
+
     st.subheader("Set optional ISBNs")
     isbn_flat = st.text_input("ISBN (Flat)")
     isbn_folded = st.text_input("ISBN (Folded)")
@@ -344,7 +371,7 @@ def form() -> None:
 
     series_out, a_out, b_out = {}, {}, {}
     series_out, a_out, b_out = _process_records(
-        series_in, a_in, b_in, isbn_flat, isbn_folded, contact_indexes
+        series_in, a_in, b_in, sheet_number, isbn_flat, isbn_folded, contact_indexes
     )
 
     if series_out or a_out or b_out:

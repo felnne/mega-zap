@@ -5,6 +5,7 @@
 ### Added
 
 * Sorting for contacts
+* Setting sheet number via supplemental info workaround in all records
 * Setting local paper map product hierarchy level code in overall record
 
 
