@@ -148,11 +148,9 @@ def resolve_bboxes(
     return (west, east, south, north)
 
 
-def _process_extent(series: dict, side_a: dict, side_b: dict):
-    a = deepcopy(side_a["identification"]["extents"][0])
-    b = deepcopy(side_b["identification"]["extents"][0])
-    a["identifier"] = "side-a"
-    b["identifier"] = "side-b"
+def _process_extent(series: dict, side_a: dict, side_b: dict) -> None:
+    a = deepcopy(next(extent for extent in side_a["identification"]["extents"] if extent["identifier"] == "bounding"))
+    b = deepcopy(next(extent for extent in side_b["identification"]["extents"] if extent["identifier"] == "bounding"))
 
     bbboxes = [
         (
@@ -176,7 +174,7 @@ def _process_extent(series: dict, side_a: dict, side_b: dict):
         },
     }
 
-    series["identification"]["extents"] = [bounding, a, b]
+    series["identification"]["extents"] = [bounding]
 
 
 def _process_distribution(series: dict):
