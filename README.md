@@ -15,7 +15,10 @@ https://mega-zap.streamlit.app (temporary hosting)
 
 - adds 'paper map product' local hierarchy level code list value to overall record (always)
 - adds ISBN identifiers to records (if set)
-- adds map series sheet number to records via supplemental info key-value (if set)
+- adds map series sheet number to records via supplemental info key-value (if set) as:
+  - {Overall Map}: '{sheet number}'
+  - {Side A}: '{sheet number}A'
+  - {Side B}: '{sheet number}B'
 - adds MAGIC as an author if missing (always)
 - sets the order of contacts inc. authors (always but changing order is optional)
 - adds aggregations (relationships) between records: (always)
@@ -36,12 +39,6 @@ https://mega-zap.streamlit.app (temporary hosting)
 - output records will give validation warnings for pending local code list values ('paperMapProduct', 'paperMap')
 - doubt overall bbox is being calculated correctly
 - no tests
-
-## Notes
-
-- Shouldn't include paper info in sides A/B?
-  - i.e. do we tie A/B to a specific paper map and inherit info/context from it, or not? 
-  - currently inconsistent but leaning towards tieing
 
 ## Development
 
