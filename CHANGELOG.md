@@ -1,8 +1,14 @@
 # Mega Zap ⚡️ - Change log
 
-## [0.2.0] - 2025-06-02
-
 ## [Unreleased]
+
+## [0.3.0] - 2025-06-06
+
+### Changed
+
+* Sheet number set according to each record ('{sheet_number}', '{sheet_number}A', '{sheet_number}B')
+
+## [0.2.0] - 2025-06-02
 
 ### Added
 

@@ -154,23 +154,28 @@ def _process_extent(series: dict, side_a: dict, side_b: dict) -> None:
     series["identification"]["extents"] = [bounding]
 
 
+def _set_sheet_number(record: dict, sheet_number: str) -> None:
+    sinfo = {}
+    if "supplemental_information" in record["identification"]:
+        # try to json decode existing supplemental information
+        try:
+            sinfo = json.loads(record["identification"]["supplemental_information"])
+        except json.JSONDecodeError:
+            msg = "Supplemental information is set but isn't JSON parsable, won't continue."
+            e = RuntimeError(msg)
+            st.exception(e)
+            raise e
+        sinfo["sheet_number"] = sheet_number
+        record["identification"]["supplemental_information"] = json.dumps(sinfo)
+
+
 def _process_sheet_number(series: dict, side_a: dict, side_b: dict, sheet_number: str | None) -> None:
     if not sheet_number:
         return
 
-    for record in [series, side_a, side_b]:
-        sinfo = {}
-        if "supplemental_information" in record["identification"]:
-            # try to json decode existing supplemental information
-            try:
-                sinfo = json.loads(record["identification"]["supplemental_information"])
-            except json.JSONDecodeError:
-                msg = "Supplemental information is set but isn't JSON parsable, won't continue."
-                e = RuntimeError(msg)
-                st.exception(e)
-                raise e
-            sinfo["sheet_number"] = sheet_number
-            record["identification"]["supplemental_information"] = json.dumps(sinfo)
+    _set_sheet_number(series, sheet_number)
+    _set_sheet_number(side_a, f"{sheet_number}A")
+    _set_sheet_number(side_b, f"{sheet_number}B")
 
 
 def _process_distribution(series: dict, side_a: dict, side_b: dict) -> None:
@@ -304,6 +309,9 @@ def form() -> None:
     st.subheader("Set optional sheet number")
     st.write("Map series and edition can be set in Zap ⚡️.")
     sheet_number = st.text_input("Sheet number")
+    st.write(
+        f"Sheet numbers will be set as *{sheet_number}*, *{sheet_number}A* and *{sheet_number}B* in records respectively."
+    )
 
     st.subheader("Set optional ISBNs")
     isbn_flat = st.text_input("ISBN (Flat)")
