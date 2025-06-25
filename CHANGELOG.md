@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-06-25
+
+### Added
+
+* Support for contacts that are different between search record
+
 ## [0.3.0] - 2025-06-06
 
 ### Changed
