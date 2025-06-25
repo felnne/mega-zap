@@ -21,6 +21,7 @@ https://mega-zap.streamlit.app (temporary hosting)
   - {Side B}: '{sheet number}B'
 - adds MAGIC as an author if missing (always)
 - sets the order of contacts inc. authors (always but changing order is optional)
+  - with support for maps where the authors are the same for each side, or different
 - adds aggregations (relationships) between records: (always)
   - {Overall Map}:
     - 'this item is composed of {Side A} and {Side B} as a paper map'

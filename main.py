@@ -36,15 +36,19 @@ def _process_identifiers(
                 record["identification"]["identifiers"].append(isbn)
 
 
-def _process_contacts(series: dict, side_a: dict, side_b: dict, contacts_order: list[int]) -> None:
+def _process_contacts(
+    series: dict, side_a: dict, side_b: dict, contacts_order: tuple[list[int], list[int], list[int]]
+) -> None:
     for record in [series, side_a, side_b]:
         # set roles for MAGIC contact
         for i, contact in enumerate(record["identification"]["contacts"]):
             if contact.get("email", "") == "magic@bas.ac.uk" and "author" not in contact["role"]:
                 record["identification"]["contacts"][i]["role"].append("author")
 
-        # reorder contacts
-        record["identification"]["contacts"] = [record["identification"]["contacts"][i] for i in contacts_order]
+    # reorder contacts
+    series["identification"]["contacts"] = [series["identification"]["contacts"][i] for i in contacts_order[0]]
+    side_a["identification"]["contacts"] = [side_a["identification"]["contacts"][i] for i in contacts_order[1]]
+    side_b["identification"]["contacts"] = [side_b["identification"]["contacts"][i] for i in contacts_order[2]]
 
 
 def _process_aggregations(series: dict, side_a: dict, side_b: dict) -> None:
@@ -229,7 +233,7 @@ def _process_records(
     sheet_number: str | None,
     isbn_flat: str | None,
     isbn_folded: str | None,
-    contacts_order: list[int],
+    contacts_order: tuple[list[int], list[int], list[int]],
 ) -> tuple[dict, dict, dict]:
     series = deepcopy(series_in)
     side_a = deepcopy(side_a_in)
@@ -266,21 +270,15 @@ def _process_records(
     return series, side_a, side_b
 
 
-def _form_contacts(record: dict) -> list:
-    """
-    Reorders contacts in a record.
-
-    Returned value is a list of new indexs. E.g. for an orginial list [0, 1, 2] where the middle item is moved to the
-    end, [0, 2, 1] is returned.
-    To re-order list, access the original list using the new list. E.g.: new = [original[i] for i in updated_indexes]
-    """
-    contact_names = [
+def _record_contact_names(record: dict) -> list[str]:
+    return [
         contact["individual"]["name"] if "individual" in contact else contact["organisation"]["name"]
         for contact in record["identification"]["contacts"]
     ]
-    contact_names_sorted = st_sortables(contact_names)
 
-    updated_indexes = [
+
+def _process_contact_indexes(record: dict, sorted_names: list[str]):
+    indexes = [
         record["identification"]["contacts"].index(
             next(
                 contact
@@ -291,9 +289,44 @@ def _form_contacts(record: dict) -> list:
                 )
             )
         )
-        for name in contact_names_sorted
+        for name in sorted_names
     ]
-    return updated_indexes
+    return indexes
+
+
+def _form_contacts(series: dict, side_a: dict, side_b: dict) -> tuple[list[int], list[int], list[int]]:
+    """
+    Reorders contacts in records.
+
+    In general returns a list of new indexes giving the desired order of contacts in a record.
+
+    E.g. for an orginial list [0, 1, 2] where the middle item is moved to the end, [0, 2, 1] is returned.
+    To re-order a list, access the original list using the new list (`new = [original[i] for i in updated_indexes]`)
+
+    Where all records have the same contacts, a single input is shown (for the series record) and the same indexes are
+    returned for all three records. Where any different, separate inputs and indexes are used.
+    """
+    series_contacts = _record_contact_names(series)
+    contacts_a = _record_contact_names(side_a)
+    contacts_b = _record_contact_names(side_b)
+
+    if sorted(series_contacts) == sorted(contacts_a) == sorted(contacts_b):
+        # contacts are the same across records, so we can show one input
+        series_names_sorted = st_sortables(series_contacts)
+        series_indexes = _process_contact_indexes(series, series_names_sorted)
+        return series_indexes, series_indexes, series_indexes
+
+    st.write("Series contacts:")
+    series_names_sorted = st_sortables(series_contacts)
+    st.write("Side A contacts:")
+    a_names_sorted = st_sortables(contacts_a)
+    st.write("Side B contacts:")
+    b_names_sorted = st_sortables(contacts_b)
+
+    series_indexes = _process_contact_indexes(series, series_names_sorted)
+    a_indexes = _process_contact_indexes(side_a, a_names_sorted)
+    b_indexes = _process_contact_indexes(side_b, b_names_sorted)
+    return series_indexes, a_indexes, b_indexes
 
 
 def form() -> None:
@@ -318,7 +351,7 @@ def form() -> None:
     isbn_folded = st.text_input("ISBN (Folded)")
 
     st.subheader("Set authors order")
-    contact_indexes = _form_contacts(series_in)
+    contact_indexes = _form_contacts(series_in, a_in, b_in)
 
     st.info("Changing any options above will automatically re-process records for download.")
     series_out, a_out, b_out = {}, {}, {}
